@@ -52,3 +52,31 @@ func handlerRegister(s *state, cmd command) error {
 	fmt.Printf("new username has been registered: %s\n", user.Name)
 	return nil
 }
+
+func handlerReset(s *state, _ command) error {
+	err := s.db.DeleteAllUsers(context.Background())
+	if err != nil {
+		return fmt.Errorf("error deleting users: %v", err)
+	}
+
+	fmt.Println("the database was successfully reset")
+	return nil
+}
+
+func handlerUsers(s *state, _ command) error {
+	users, err := s.db.GetUsers(context.Background())
+	if err != nil {
+		return fmt.Errorf("error fetching users: %v", err)
+	}
+
+	for _, u := range users {
+		row := fmt.Sprintf("* %s", u.Name)
+		if u.Name == s.cfg.CurrentUserName {
+			row = fmt.Sprintf("* %s (current)", u.Name)
+		}
+
+		fmt.Println(row)
+	}
+
+	return nil
+}

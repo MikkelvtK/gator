@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -12,7 +11,7 @@ import (
 
 func handlerLogin(s *state, cmd command) error {
 	if len(cmd.args) == 0 {
-		return errors.New("login: username is required")
+		return numArgError(1, "username")
 	}
 
 	if _, err := s.db.GetUser(context.Background(), cmd.args[0]); err != nil {
@@ -29,7 +28,7 @@ func handlerLogin(s *state, cmd command) error {
 
 func handlerRegister(s *state, cmd command) error {
 	if len(cmd.args) != 1 {
-		return errors.New("username is required")
+		return numArgError(1, "username")
 	}
 
 	userParams := database.CreateUserParams{
@@ -93,7 +92,7 @@ func handlerAgg(_ *state, _ command) error {
 
 func handlerAddFeed(s *state, cmd command, user database.User) error {
 	if len(cmd.args) != 2 {
-		return fmt.Errorf("expected 2 arguments: name, url")
+		return numArgError(2, "name", "url")
 	}
 
 	feedParams := database.CreateFeedParams{
@@ -188,7 +187,7 @@ func handlerFollowing(s *state, _ command, user database.User) error {
 	}
 
 	if len(feeds) == 0 {
-		fmt.Println("no founds found")
+		fmt.Println("no feeds found")
 		return nil
 	}
 
@@ -198,5 +197,29 @@ func handlerFollowing(s *state, _ command, user database.User) error {
 		fmt.Printf("* %s\n", f.FeedName)
 	}
 
+	return nil
+}
+
+func handlerUnfollow(s *state, cmd command, user database.User) error {
+	if len(cmd.args) != 1 {
+		return numArgError(1, "url")
+	}
+
+	feed, err := s.db.GetFeedByUrl(context.Background(), cmd.args[0])
+	if err != nil {
+		return fmt.Errorf("error fetching feed: %v", err)
+	}
+
+	deleteFeedFollowParams := database.DeleteFeedFollowParams{
+		UserID: user.ID,
+		FeedID: feed.ID,
+	}
+
+	err = s.db.DeleteFeedFollow(context.Background(), deleteFeedFollowParams)
+	if err != nil {
+		return fmt.Errorf("error deleting feed follow: %v", err)
+	}
+
+	fmt.Printf("successfully unfollowed %s\n", cmd.args[0])
 	return nil
 }

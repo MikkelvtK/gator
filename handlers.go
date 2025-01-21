@@ -91,14 +91,9 @@ func handlerAgg(_ *state, _ command) error {
 	return nil
 }
 
-func handlerAddFeed(s *state, cmd command) error {
+func handlerAddFeed(s *state, cmd command, user database.User) error {
 	if len(cmd.args) != 2 {
 		return fmt.Errorf("expected 2 arguments: name, url")
-	}
-
-	user, err := s.db.GetUser(context.Background(), s.cfg.CurrentUserName)
-	if err != nil {
-		return fmt.Errorf("error fetching user: %v", err)
 	}
 
 	feedParams := database.CreateFeedParams{
@@ -113,6 +108,19 @@ func handlerAddFeed(s *state, cmd command) error {
 	feed, err := s.db.CreateFeed(context.Background(), feedParams)
 	if err != nil {
 		return fmt.Errorf("error creating feed: %v", err)
+	}
+
+	feedFollowParams := database.CreateFeedFollowParams{
+		ID:        uuid.New(),
+		UserID:    user.ID,
+		FeedID:    feed.ID,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	_, err = s.db.CreateFeedFollow(context.Background(), feedFollowParams)
+	if err != nil {
+		return fmt.Errorf("error creating feed follow: %v", err)
 	}
 
 	fmt.Printf("%s created the feed: %s\n", user.Name, feed.Name)
@@ -145,14 +153,9 @@ func handlerFeeds(s *state, cmd command) error {
 	return nil
 }
 
-func handlerFollowing(s *state, cmd command) error {
+func handlerFollow(s *state, cmd command, user database.User) error {
 	if len(cmd.args) != 1 {
 		return fmt.Errorf("expected 1 argument: url")
-	}
-
-	user, err := s.db.GetUser(context.Background(), s.cfg.CurrentUserName)
-	if err != nil {
-		return fmt.Errorf("error fetching user: %v", err)
 	}
 
 	feed, err := s.db.GetFeedByUrl(context.Background(), cmd.args[0])
@@ -174,6 +177,26 @@ func handlerFollowing(s *state, cmd command) error {
 	}
 
 	fmt.Printf("%s followed the feed: %s\n", feedFollow.UserName, feedFollow.FeedName)
+
+	return nil
+}
+
+func handlerFollowing(s *state, _ command, user database.User) error {
+	feeds, err := s.db.GetFeedFollowsForUser(context.Background(), s.cfg.CurrentUserName)
+	if err != nil {
+		return fmt.Errorf("error fetching feeds: %v", err)
+	}
+
+	if len(feeds) == 0 {
+		fmt.Println("no founds found")
+		return nil
+	}
+
+	fmt.Printf("found %d feeds for %s\n", len(feeds), user.Name)
+
+	for _, f := range feeds {
+		fmt.Printf("* %s\n", f.FeedName)
+	}
 
 	return nil
 }

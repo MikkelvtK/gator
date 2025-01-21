@@ -4,16 +4,18 @@ import (
 	"fmt"
 )
 
+type commandHandler = func(*state, command) error
+
 type command struct {
 	name string
 	args []string
 }
 
 type commands struct {
-	commands map[string]func(*state, command) error
+	commands map[string]commandHandler
 }
 
-func (c *commands) register(name string, f func(*state, command) error) {
+func (c *commands) register(name string, f commandHandler) {
 	c.commands[name] = f
 }
 

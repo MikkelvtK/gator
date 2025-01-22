@@ -80,13 +80,23 @@ func handlerUsers(s *state, _ command) error {
 	return nil
 }
 
-func handlerAgg(_ *state, _ command) error {
-	feed, err := fetchFeed(context.Background(), "https://www.wagslane.dev/index.xml")
+func handlerAgg(s *state, cmd command) error {
+	if len(cmd.args) != 1 {
+		return numArgError(1, "time_between_reqs")
+	}
+
+	interval, err := time.ParseDuration(cmd.args[0])
 	if err != nil {
 		return err
 	}
 
-	fmt.Println(feed)
+	ticker := time.NewTicker(interval)
+	for ; ; <-ticker.C {
+		if err = scrapeFeeds(s); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 

@@ -6,6 +6,15 @@ import (
 	"fmt"
 	"html"
 	"net/http"
+	"time"
+
+	"github.com/MikkelvtK/gator/internal/database"
+	"github.com/google/uuid"
+	"github.com/lib/pq"
+)
+
+const (
+	uniqueConstraintError = "23505"
 )
 
 type RSSFeed struct {
@@ -78,8 +87,36 @@ func scrapeFeeds(s *state) error {
 	fmt.Printf("fetched %d items from %s\n", len(feed.Channel.Item), feedToFetch.Url)
 
 	for _, item := range feed.Channel.Item {
-		fmt.Printf("* %s\n", item.Title)
+		err = storePost(s, item, feedToFetch.ID)
+
+		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == uniqueConstraintError {
+			continue
+		}
+
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
+}
+
+func storePost(s *state, i RSSItem, feedId uuid.UUID) error {
+	publishedAt, err := time.Parse(time.RFC1123, i.PubDate)
+	if err != nil {
+		return err
+	}
+
+	params := database.CreatePostParams{
+		ID:          uuid.New(),
+		Title:       i.Title,
+		Url:         i.Link,
+		Description: i.Description,
+		PublishedAt: publishedAt,
+		FeedID:      feedId,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+
+	return s.db.CreatePost(context.Background(), params)
 }

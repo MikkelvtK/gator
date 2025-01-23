@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/MikkelvtK/gator/internal/database"
@@ -96,8 +97,6 @@ func handlerAgg(s *state, cmd command) error {
 			return err
 		}
 	}
-
-	return nil
 }
 
 func handlerAddFeed(s *state, cmd command, user database.User) error {
@@ -231,5 +230,36 @@ func handlerUnfollow(s *state, cmd command, user database.User) error {
 	}
 
 	fmt.Printf("successfully unfollowed %s\n", cmd.args[0])
+	return nil
+}
+
+func handlerBrowse(s *state, cmd command, user database.User) error {
+	limit := 2
+
+	if len(cmd.args) == 1 {
+		arg, err := strconv.Atoi(cmd.args[0])
+		if err != nil {
+			return err
+		}
+
+		limit = arg
+	}
+
+	params := database.GetPostsForUserParams{
+		UserID: user.ID,
+		Limit:  int32(limit),
+	}
+
+	posts, err := s.db.GetPostsForUser(context.Background(), params)
+	if err != nil {
+		return err
+	}
+
+	for _, p := range posts {
+		fmt.Printf("Title: %s\n", p.Title)
+		fmt.Println("==============================================")
+		fmt.Printf("%s\n\n", p.Description)
+	}
+
 	return nil
 }
